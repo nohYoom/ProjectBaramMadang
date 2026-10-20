@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sosikteo - {{ media_type|default('All')|title }}{% if category %} / {{ category|title }}{% endif %}</title>
+</head>
+
+<body>
+    <h1>Sosikteo</h1>
+    <p>Media filter: <strong>{{ media_type|default('All') }}</strong>{% if category %} | Category: <strong>{{ category }}</strong>{% endif %}</p>
+
+    {% if items %}
+    <ul>
+        {% for item in items %}
+        <li>
+            {% if item['category'] %}
+            <a href="{{ url_for('main.show_media', media_type=item['media_type'], category=item['category'], article_id=item['id']) }}">
+                [{{ item['media_type'] }}/{{ item['category'] }}] {{ item['title'] }}
+            </a>
+            {% else %}
+            <a href="{{ url_for('main.show_media', media_type=item['media_type'], article_id=item['id']) }}">
+                [{{ item['media_type'] }}] {{ item['title'] }}
+            </a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</body>
+
+</html>
