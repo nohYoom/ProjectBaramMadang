@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,19 +9,38 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     {% endif %}
     {% if item.view_type == 'epub' %}
-    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <script src="{{ url_for('static', filename='js/jszip.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/epub.min.js') }}"></script>
     {% endif %}
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f0f0; color: #333; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f0f0f0;
+            color: #333;
+        }
 
         .header {
             background: #fff;
             border-bottom: 1px solid #ddd;
             padding: 20px 30px;
         }
-        .header h1 { font-size: 1.4rem; margin-bottom: 6px; }
-        .header .meta { font-size: 0.8rem; color: #888; }
+
+        .header h1 {
+            font-size: 1.4rem;
+            margin-bottom: 6px;
+        }
+
+        .header .meta {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
         .mode-badge {
             display: inline-block;
             background: #e8e8e8;
@@ -51,7 +71,10 @@
         }
 
         /* --- PDF Viewer (browser embed) --- */
-        .pdf-viewer { width: 100%; }
+        .pdf-viewer {
+            width: 100%;
+        }
+
         .pdf-viewer embed {
             display: block;
             width: 100%;
@@ -60,27 +83,35 @@
         }
 
         /* --- Mixed Viewer (text + images) --- */
-        .mixed-viewer { padding: 32px; }
+        .mixed-viewer {
+            padding: 32px;
+        }
+
         .mixed-viewer .block-text {
             margin-bottom: 20px;
             line-height: 1.9;
             font-size: 1rem;
         }
+
         .mixed-viewer .block-text:first-child {
             font-size: 1.3rem;
             font-weight: 600;
             margin-bottom: 24px;
         }
+
         .mixed-viewer figure {
             margin: 24px 0;
             text-align: center;
         }
+
         .mixed-viewer figure img {
             max-width: 100%;
             border-radius: 4px;
             background: #eee;
-            min-height: 200px; /* placeholder size if image missing */
+            min-height: 200px;
+            /* placeholder size if image missing */
         }
+
         .mixed-viewer figcaption {
             font-size: 0.8rem;
             color: #888;
@@ -96,6 +127,7 @@
             background: #2a2a2a;
             min-height: 600px;
         }
+
         .book-controls {
             display: flex;
             gap: 16px;
@@ -104,6 +136,7 @@
             color: #ccc;
             font-size: 0.9rem;
         }
+
         .book-controls button {
             padding: 6px 14px;
             background: #444;
@@ -113,50 +146,80 @@
             cursor: pointer;
             font-size: 0.85rem;
         }
-        .book-controls button:hover { background: #666; }
-        .book-controls button:disabled { opacity: 0.3; cursor: default; }
+
+        .book-controls button:hover {
+            background: #666;
+        }
+
+        .book-controls button:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
         .spread {
             display: flex;
             gap: 2px;
             justify-content: center;
         }
+
         .book-page {
             background: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
-        .book-page canvas { display: block; }
 
-        /* --- EPUB Viewer --- */
+        .book-page canvas {
+            display: block;
+        }
+
+        /* --- EPUB Viewer (scrollable continuous) --- */
         .epub-viewer {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
+            padding: 0;
+            position: relative;
         }
-        .epub-controls {
-            display: flex;
-            gap: 16px;
-            align-items: center;
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-            color: #666;
+
+        .epub-progress-bar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            height: 3px;
+            background: #e0e0e0;
         }
-        .epub-controls button {
-            padding: 6px 14px;
+
+        .epub-progress-bar .fill {
+            height: 100%;
             background: #444;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .epub-status {
+            text-align: center;
+            padding: 16px;
+            color: #999;
             font-size: 0.85rem;
         }
-        .epub-controls button:hover { background: #666; }
+
+        .epub-error {
+            text-align: center;
+            padding: 48px 32px;
+            color: #c00;
+            font-size: 0.95rem;
+        }
+
+        /* epub.js scrolled-doc container */
         #epub-area {
             width: 100%;
-            height: 70vh;
+            min-height: 400px;
+            overflow: hidden;
+        }
+
+        /* Style the epub.js rendered iframes to be seamless */
+        #epub-area iframe {
+            border: none !important;
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <h1>{{ item.title }}<span class="mode-badge">{{ item.view_type }}</span></h1>
@@ -181,18 +244,17 @@
         {% elif item.view_type == 'mixed' %}
         <div class="mixed-viewer">
             {% for block in item.content_blocks %}
-                {% if block.type == 'text' %}
-                <p class="block-text">{{ block.content }}</p>
-                {% elif block.type == 'image' %}
-                <figure>
-                    <img src="{{ url_for('static', filename=block.src) }}"
-                         alt="{{ block.caption|default('') }}"
-                         onerror="this.alt='[Image not found: {{ block.src }}]'; this.style.border='2px dashed #ccc';">
-                    {% if block.caption %}
-                    <figcaption>{{ block.caption }}</figcaption>
-                    {% endif %}
-                </figure>
+            {% if block.type == 'text' %}
+            <p class="block-text">{{ block.content }}</p>
+            {% elif block.type == 'image' %}
+            <figure>
+                <img src="{{ url_for('static', filename=block.src) }}" alt="{{ block.caption|default('') }}"
+                    onerror="this.alt='[Image not found: {{ block.src }}]'; this.style.border='2px dashed #ccc';">
+                {% if block.caption %}
+                <figcaption>{{ block.caption }}</figcaption>
                 {% endif %}
+            </figure>
+            {% endif %}
             {% endfor %}
         </div>
 
@@ -200,21 +262,20 @@
         {% elif item.view_type == 'book' %}
         <div class="book-viewer">
             <div class="book-controls">
-                <button id="prev-btn">← 이전</button>
-                <span id="page-info">로딩 중...</span>
-                <button id="next-btn">다음 →</button>
+                <button id="prev-btn">idk back</button>
+                <span id="page-info">it broken or not loaded</span>
+                <button id="next-btn">next</button>
             </div>
             <div id="spread" class="spread"></div>
         </div>
 
-        {# ---- EPUB MODE ---- #}
+        {# ---- EPUB MODE (scrollable continuous) ---- #}
         {% elif item.view_type == 'epub' %}
         <div class="epub-viewer">
-            <div class="epub-controls">
-                <button id="epub-prev">← 이전</button>
-                <span id="epub-loc">로딩 중...</span>
-                <button id="epub-next">다음 →</button>
+            <div class="epub-progress-bar">
+                <div class="fill" id="epub-progress-fill"></div>
             </div>
+            <div class="epub-status" id="epub-status">Loading article</div>
             <div id="epub-area"></div>
         </div>
         {% endif %}
@@ -224,111 +285,161 @@
     {# ---- Book mode JS ---- #}
     {% if item.view_type == 'book' %}
     <script>
-    (async function() {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        (async function () {
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        const url = '{{ item.file_url }}';
-        let pdf;
-        try {
-            pdf = await pdfjsLib.getDocument(url).promise;
-        } catch(e) {
-            document.getElementById('page-info').textContent =
-                'PDF를 불러올 수 없습니다. static/' + '{{ DATA_FILES.book }}' + ' 에 PDF 파일을 넣어주세요.';
-            return;
-        }
-
-        const total = pdf.numPages;
-        const spreads = Math.ceil(total / 2);
-        let current = 0;
-
-        const container = document.getElementById('spread');
-        const info = document.getElementById('page-info');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-
-        async function renderPage(num) {
-            const page = await pdf.getPage(num);
-            const vp = page.getViewport({ scale: 1.0 });
-            const canvas = document.createElement('canvas');
-            canvas.width = vp.width;
-            canvas.height = vp.height;
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-            return canvas;
-        }
-
-        async function show(idx) {
-            container.innerHTML = '';
-            const left = idx * 2 + 1;
-            const right = idx * 2 + 2;
-
-            if (left <= total) {
-                const div = document.createElement('div');
-                div.className = 'book-page';
-                div.appendChild(await renderPage(left));
-                container.appendChild(div);
-            }
-            if (right <= total) {
-                const div = document.createElement('div');
-                div.className = 'book-page';
-                div.appendChild(await renderPage(right));
-                container.appendChild(div);
+            const url = '{{ item.file_url }}';
+            let pdf;
+            try {
+                pdf = await pdfjsLib.getDocument(url).promise;
+            } catch (e) {
+                document.getElementById('page-info').textContent =
+                    'PDF를 불러올 수 없습니다. static/' + '{{ DATA_FILES.book }}' + ' 에 PDF 파일을 넣어주세요.';
+                return;
             }
 
-            const lo = left, hi = Math.min(right, total);
-            info.textContent = lo === hi ? `${lo} / ${total}` : `${lo}-${hi} / ${total}`;
-            prevBtn.disabled = idx === 0;
-            nextBtn.disabled = idx >= spreads - 1;
-        }
+            const total = pdf.numPages;
+            const spreads = Math.ceil(total / 2);
+            let current = 0;
 
-        prevBtn.onclick = () => { if (current > 0) show(--current); };
-        nextBtn.onclick = () => { if (current < spreads - 1) show(++current); };
+            const container = document.getElementById('spread');
+            const info = document.getElementById('page-info');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
 
-        show(0);
-    })();
+            async function renderPage(num) {
+                const page = await pdf.getPage(num);
+                const vp = page.getViewport({ scale: 1.0 });
+                const canvas = document.createElement('canvas');
+                canvas.width = vp.width;
+                canvas.height = vp.height;
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+                return canvas;
+            }
+
+            async function show(idx) {
+                container.innerHTML = '';
+                const left = idx * 2 + 1;
+                const right = idx * 2 + 2;
+
+                if (left <= total) {
+                    const div = document.createElement('div');
+                    div.className = 'book-page';
+                    div.appendChild(await renderPage(left));
+                    container.appendChild(div);
+                }
+                if (right <= total) {
+                    const div = document.createElement('div');
+                    div.className = 'book-page';
+                    div.appendChild(await renderPage(right));
+                    container.appendChild(div);
+                }
+
+                const lo = left, hi = Math.min(right, total);
+                info.textContent = lo === hi ? `${lo} / ${total}` : `${lo}-${hi} / ${total}`;
+                prevBtn.disabled = idx === 0;
+                nextBtn.disabled = idx >= spreads - 1;
+            }
+
+            prevBtn.onclick = () => { if (current > 0) show(--current); };
+            nextBtn.onclick = () => { if (current < spreads - 1) show(++current); };
+
+            show(0);
+        })();
     </script>
     {% endif %}
 
-    {# ---- EPUB mode JS ---- #}
+    {# ---- EPUB mode JS (scrollable continuous) ---- #}
     {% if item.view_type == 'epub' %}
     <script>
-    (function() {
-        const url = '{{ item.file_url }}';
-        const book = ePub(url);
-        const rendition = book.renderTo('epub-area', {
-            width: '100%',
-            height: '100%',
-            spread: 'auto'
-        });
-        rendition.display();
+        (function () {
+            var url = '{{ item.file_url }}';
+            var statusEl = document.getElementById('epub-status');
+            var progressFill = document.getElementById('epub-progress-fill');
+            var epubArea = document.getElementById('epub-area');
 
-        const locEl = document.getElementById('epub-loc');
-        const prevBtn = document.getElementById('epub-prev');
-        const nextBtn = document.getElementById('epub-next');
+            console.log('[EPUB] Loading from:', url);
 
-        prevBtn.addEventListener('click', function() { rendition.prev(); });
-        nextBtn.addEventListener('click', function() { rendition.next(); });
+            var book = ePub(url);
 
-        // keyboard nav
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowLeft') rendition.prev();
-            if (e.key === 'ArrowRight') rendition.next();
-        });
+            book.ready.then(function () {
+                console.log('[EPUB] Book ready');
+                statusEl.textContent = '렌더링 중...';
 
-        book.ready.then(function() {
-            return book.locations.generate(1024);
-        }).then(function() {
-            rendition.on('relocated', function(location) {
-                const pct = book.locations.percentageFromCfi(location.start.cfi);
-                locEl.textContent = Math.round(pct * 100) + '%';
+                // Use epub.js continuous scrolled flow for chunk-by-chunk lazy loading
+                var rendition = book.renderTo('epub-area', {
+                    manager: 'continuous',
+                    flow: 'scrolled',
+                    width: '100%',
+                    fullsize: true
+                });
+
+                // Apply custom styles to the epub content inside iframes
+                rendition.themes.default({
+                    'body': {
+                        'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                        'line-height': '1.9',
+                        'font-size': '1.05rem',
+                        'color': '#222',
+                        'padding': '0 20px',
+                        'max-width': '100%'
+                    },
+                    'p': {
+                        'margin-bottom': '16px'
+                    },
+                    'img': {
+                        'max-width': '100%',
+                        'height': 'auto'
+                    },
+                    'h1, h2, h3': {
+                        'color': '#111'
+                    }
+                });
+
+                rendition.display().then(function () {
+                    console.log('[EPUB] Display complete');
+                    statusEl.style.display = 'none';
+                }).catch(function (err) {
+                    console.error('[EPUB] Display error:', err);
+                    statusEl.innerHTML = '<div class="epub-error">EPUB 렌더링 실패<br><small>' +
+                        (err.message || err) + '</small></div>';
+                });
+
+                // Track reading progress and trigger chunk loading
+                window.addEventListener('scroll', function () {
+                    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+                    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    if (docHeight > 0) {
+                        var pct = Math.min(100, Math.round((scrollTop / docHeight) * 100));
+                        progressFill.style.width = pct + '%';
+                    }
+                    if (rendition && rendition.manager && typeof rendition.manager.check === 'function') {
+                        rendition.manager.check();
+                    }
+                }, { passive: true });
+
+                // Track relocation events for progress
+                rendition.on('relocated', function (location) {
+                    console.log('[EPUB] Relocated:', location);
+                });
+
+                rendition.on('rendered', function (section) {
+                    console.log('[EPUB] Section rendered:', section.index);
+                });
+
+            }).catch(function (err) {
+                console.error('[EPUB] Book ready error:', err);
+                statusEl.innerHTML = '<div class="epub-error">EPUB를 불러올 수 없습니다.<br>' +
+                    '<small>' + (err.message || err) + '</small></div>';
             });
-        });
 
-        rendition.on('rendered', function() {
-            locEl.textContent = '준비 완료';
-        });
-    })();
+            book.loaded.metadata.then(function (meta) {
+                console.log('[EPUB] Metadata:', meta.title);
+            });
+        })();
     </script>
     {% endif %}
 </body>
+
 </html>
