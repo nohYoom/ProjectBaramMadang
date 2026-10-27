@@ -1,38 +1,47 @@
 import os
 import json
-from flask import Blueprint, render_template, redirect, url_for, current_app
+from flask import Blueprint, render_template, redirect, url_for, current_app, send_file, abort
 
 main_bp = Blueprint('main', __name__)
 
-# ============================================================
-# CHANGE THIS to switch viewer: 'text', 'pdf', 'mixed', 'book'
-VIEW_TYPE = 'text'
-# ============================================================
+VIEW_TYPE = 'epub'
 
-# Dict matches DB schema from diagram
+
 DEMO_ITEM = {
     'media_id': 1,
-    'type': 'articles',          # articles, images, zines
+    'type': 'articles',        
     'title': 'Sample Article Title',
-    'filter': 'science',
+    'filter': 'MUN',
     'publication_date': '2026-10-17',
     'author_id': 1,
     'author_name': 'Test Author',
 }
 
-# Which file to load for each view type
+
 DATA_FILES = {
-    'text': 'uploads/sample/article.txt',
     'pdf': 'uploads/sample/document.pdf',
     'mixed': 'uploads/sample/content.json',
-    'book': 'uploads/sample/document.pdf',
-    'epub': 'uploads/sample/book.epub',
+    'epub': 'uploads/sample/article.epub'
 }
 
 
 @main_bp.route('/')
 def index():
     return redirect(url_for('main.viewer'))
+
+
+@main_bp.route('/epub/<path:filename>')
+def serve_epub(filename):
+    """Serve EPUB files with correct MIME type and headers for epub.js."""
+    safe_path = os.path.join(current_app.static_folder, 'uploads', filename)
+    if not os.path.isfile(safe_path):
+        abort(404)
+    return send_file(
+        safe_path,
+        mimetype='application/epub+zip',
+        as_attachment=False,
+        download_name=os.path.basename(safe_path),
+    )
 
 
 @main_bp.route('/viewer')
@@ -49,8 +58,12 @@ def viewer():
         else:
             item['content'] = f'[File not found: place a text file at static/{data_file}]'
 
-    elif VIEW_TYPE in ('pdf', 'book', 'epub'):
+    elif VIEW_TYPE in ('pdf', 'zine'):
         item['file_url'] = url_for('static', filename=data_file)
+
+    elif VIEW_TYPE == 'epub':
+        epub_relative = data_file.replace('uploads/', '', 1)
+        item['file_url'] = url_for('main.serve_epub', filename=epub_relative)
 
     elif VIEW_TYPE == 'mixed':
         if os.path.exists(file_path):
